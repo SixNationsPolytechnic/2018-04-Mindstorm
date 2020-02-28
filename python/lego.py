@@ -1,6 +1,6 @@
 # mvk@ca.ibm.com - program to control a lego mindstorm rover wrapper 20180526
 # wrapper for some fuctions
-import curses,ev3, os,sys,time
+import curses,ev3, os,sys,time, struct
 ev3host = '00:16:53:48:d5:??'
 myEV3 = '' #x ev3.EV3(protocol=ev3.BLUETOOTH,host=ev3host)
 def init()-> None:
@@ -131,3 +131,50 @@ def stop() -> None:
         ev3.LCX(0)                        # BRAKE
     ])
     myEV3.send_direct_cmd(ops)
+
+def distance(port) -> float:
+    global myEV3, stdscr
+    ops = b''.join([
+        ev3.opInput_Device,
+        ev3.READY_SI,
+        ev3.LCX(0),          # LAYER
+        ev3.LCX(port),          # NO
+        ev3.LCX(33),         # TYPE - EV3-IR
+        ev3.LCX(0),          # MODE - Proximity
+        ev3.LCX(1),          # VALUES
+        ev3.GVX(0)           # VALUE1
+    ])
+    reply = myEV3.send_direct_cmd(ops, global_mem=4)
+    return struct.unpack('<f', reply[5:])[0]
+
+
+def gettouch(port) ->  int:
+    global myEV3, stdscr
+    ops_read = b''.join([
+        ev3.opInput_Device,
+        ev3.READY_SI,
+        ev3.LCX(0),          # LAYER
+        ev3.LCX(port),          # NO
+        ev3.LCX(16),         # TYPE - EV3-Touch
+        ev3.LCX(0),          # MODE - Touch
+        ev3.LCX(1),          # VALUES
+        ev3.GVX(0),          # VALUE1
+        ev3.opInput_Device,
+        ev3.READY_SI,
+        ev3.LCX(0),          # LAYER
+        ev3.LCX(1),          # NO
+        ev3.LCX(16),         # TYPE - EV3-Touch
+        ev3.LCX(1),          # MODE - Bump
+        ev3.LCX(1),          # VALUES
+        ev3.GVX(4)           # VALUE1
+    ])
+#    ops_sound = play_sound(10, 200, 100)
+    reply = myEV3.send_direct_cmd(ops_sound + ops_read, global_mem=8)
+#    return struct.unpack('<ff', reply[5:])
+    (touched, bumps) = struct.unpack('<ff', reply[5:])
+    if touched == 1:
+        bumps += 0.5
+#    print(bumps, "bumps")
+    return bumps
+	
+	
